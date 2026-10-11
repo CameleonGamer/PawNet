@@ -160,10 +160,25 @@ void BrowserWindow::OnWindowDestroyed(CefRefPtr<CefWindow> window) {
 }
 
 bool BrowserWindow::CanClose(CefRefPtr<CefWindow> window) {
-  // Tab browsers are destroyed with their views and report OnBrowserClosed()
-  // on their own, so the window can close right away.
-  RemoveAllTabs();
+  // Ask every page first: a beforeunload prompt makes TryCloseBrowser() return
+  // false, which cancels the window close. After the user confirms, CEF calls
+  // CanClose() again and the pages are ready.
+  for (const Tab& tab : tabs_) {
+    CefRefPtr<CefBrowser> browser = tab.view->GetBrowser();
+    if (browser && !browser->GetHost()->TryCloseBrowser()) {
+      return false;
+    }
+  }
+  // Leave the views in the window: destroying the window destroys them, and
+  // each browser then reports OnBrowserClosed().
   return true;
+}
+
+void BrowserWindow::OnFullscreenModeChanged(bool fullscreen) {
+  // Hide the toolbar and tab strip so the page can use the whole screen.
+  toolbar_->SetVisible(!fullscreen);
+  tab_strip_->SetVisible(!fullscreen);
+  window_->SetFullscreen(fullscreen);
 }
 
 void BrowserWindow::BuildUi() {
@@ -179,11 +194,11 @@ void BrowserWindow::BuildUi() {
   row.between_child_spacing = 8;
   row.cross_axis_alignment = CEF_AXIS_ALIGNMENT_STRETCH;
 
-  CefRefPtr<CefPanel> toolbar = CefPanel::CreatePanel(nullptr);
-  CefRefPtr<CefBoxLayout> toolbar_layout = toolbar->SetToBoxLayout(row);
-  toolbar->AddChildView(MakeButton("x", [this] { CloseActiveTab(); }));
-  toolbar->AddChildView(MakeButton("+", [this] { OpenTab(home_page_); }));
-  toolbar->AddChildView(address_bar_);
+  toolbar_ = CefPanel::CreatePanel(nullptr);
+  CefRefPtr<CefBoxLayout> toolbar_layout = toolbar_->SetToBoxLayout(row);
+  toolbar_->AddChildView(MakeButton("x", [this] { CloseActiveTab(); }));
+  toolbar_->AddChildView(MakeButton("+", [this] { OpenTab(home_page_); }));
+  toolbar_->AddChildView(address_bar_);
   toolbar_layout->SetFlexForView(address_bar_, 1);
 
   // Tab strip: one button per tab, added by OpenTab().
@@ -199,7 +214,7 @@ void BrowserWindow::BuildUi() {
 
   CefRefPtr<CefPanel> root = CefPanel::CreatePanel(nullptr);
   CefRefPtr<CefBoxLayout> root_layout = root->SetToBoxLayout(column);
-  root->AddChildView(toolbar);
+  root->AddChildView(toolbar_);
   root->AddChildView(tab_strip_);
   root->AddChildView(content_);
   root_layout->SetFlexForView(content_, 1);
@@ -247,35 +262,37 @@ void BrowserWindow::CloseActiveTab() {
   if (tabs_.empty()) {
     return;
   }
-  // Keep this object alive: removing the last tab closes the window, and that
-  // can finish the application before this function returns.
+  // Keep this object alive: closing the last tab can finish the application
+  // before this function returns.
   CefRefPtr<BrowserWindow> keep_alive(this);
 
-  const size_t closing = active_tab_;
-  RemoveTab(closing);
+  RemoveTabAndShowNeighbour(active_tab_);
   if (tabs_.empty()) {
     window_->Close();
-    return;
   }
-  if (closing < active_tab_) {
-    --active_tab_;
-  }
-  ActivateTab(std::min(active_tab_, tabs_.size() - 1));
 }
 
 void BrowserWindow::RemoveTab(size_t index) {
-  // Alloy style: a browser is only destroyed when its BrowserView is removed
-  // from the window and released. CloseBrowser() would close the whole window
-  // instead, so it is not used for tabs.
+  // Alloy style: a browser is destroyed when its BrowserView is removed from
+  // the window and released. CloseBrowser() is not used for single tabs, since
+  // it would route the close through the window.
   Tab tab = tabs_[index];
   content_->RemoveChildView(tab.view);
   tab_strip_->RemoveChildView(tab.button);
   tabs_.erase(tabs_.begin() + index);
 }
 
-void BrowserWindow::RemoveAllTabs() {
-  while (!tabs_.empty()) {
-    RemoveTab(tabs_.size() - 1);
+void BrowserWindow::RemoveTabAndShowNeighbour(size_t index) {
+  const bool was_active = index == active_tab_;
+  RemoveTab(index);
+  if (tabs_.empty()) {
+    return;
+  }
+  if (index < active_tab_) {
+    --active_tab_;
+  }
+  if (was_active || active_tab_ >= tabs_.size()) {
+    ActivateTab(std::min(active_tab_, tabs_.size() - 1));
   }
 }
 

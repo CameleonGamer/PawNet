@@ -10,14 +10,15 @@ Early prototype:
 
 - [x] A main window that loads a page
 - [x] Tabs (open, switch, close) and an address bar (URLs, bare hosts and search)
+- [x] Fullscreen requested by web pages
+- [x] Confirmation of unsaved pages (`beforeunload`) when closing the window
 - [ ] Settings page driven by a configuration file
 - [ ] Downloads, history, bookmarks
 - [ ] Packaging
 
 Known limitations of the prototype:
 
-- Closing a tab does not show the page's `beforeunload` prompt.
-- Fullscreen requests from web pages (for example video) are not handled yet.
+- Closing a single tab with the `x` button does not show the page's `beforeunload` prompt.
 - The tab strip does not scroll: with many tabs, the rightmost ones are clipped.
 
 ## Building (Linux x64)

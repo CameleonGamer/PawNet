@@ -26,6 +26,7 @@ class BrowserWindow : public CefWindowDelegate {
   void OnTitleChanged(int tab_id, const std::string& title);
   void OnAddressChanged(int tab_id, const std::string& url);
   void OnBrowserClosed();
+  void OnFullscreenModeChanged(bool fullscreen);
 
   // CefWindowDelegate:
   void OnWindowCreated(CefRefPtr<CefWindow> window) override;
@@ -53,7 +54,8 @@ class BrowserWindow : public CefWindowDelegate {
   // Removes a tab from the window. Its browser is destroyed once the view is
   // released, and OnBrowserClosed() is called then.
   void RemoveTab(size_t index);
-  void RemoveAllTabs();
+  // Removes a tab and keeps a neighbouring tab active.
+  void RemoveTabAndShowNeighbour(size_t index);
   void NavigateActiveTab(const std::string& input);
   // Quits the application once the window and all its browsers are gone.
   void FinishIfDone();
@@ -62,6 +64,7 @@ class BrowserWindow : public CefWindowDelegate {
 
   const std::string home_page_;
   CefRefPtr<CefWindow> window_;
+  CefRefPtr<CefPanel> toolbar_;
   CefRefPtr<CefPanel> tab_strip_;
   CefRefPtr<CefPanel> content_;
   CefRefPtr<CefTextfield> address_bar_;

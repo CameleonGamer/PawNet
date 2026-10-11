@@ -41,6 +41,8 @@ class PawNetClient : public CefClient,
                        const CefString& url) override;
   void OnTitleChange(CefRefPtr<CefBrowser> browser,
                      const CefString& title) override;
+  void OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
+                              bool fullscreen) override;
 
  private:
   BrowserWindow* const window_;

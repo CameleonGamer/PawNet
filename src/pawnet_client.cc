@@ -63,3 +63,9 @@ void PawNetClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
                                  const CefString& title) {
   window_->OnTitleChanged(tab_id_, title.ToString());
 }
+
+void PawNetClient::OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
+                                          bool fullscreen) {
+  // Required with Alloy style: pages such as video players request fullscreen.
+  window_->OnFullscreenModeChanged(fullscreen);
+}
