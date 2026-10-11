@@ -64,7 +64,10 @@ and unknown or invalid lines are reported on stderr and skipped.
 |----------------------|-------------------------------|--------------------------------------------|
 | `home_page`          | `pawnet://home`               | Page opened in the first tab and by `+`    |
 | `search_url`         | `https://duckduckgo.com/?q=`  | Search query is appended to this address   |
-| `home_background`    | `#FAFAFA`                     | Any CSS background for the home page       |
+| `home_background`    | `#16181D`                     | Any CSS background for the home page       |
+| `accent_color`       | `#FF7F62`                     | `#RRGGBB` accent: logo, focus ring, badges |
+| `home_layout`        | `centered`                    | `centered` or `top`                        |
+| `home_greeting`      | `on`                          | `on` or `off`: greeting and clock          |
 | `shortcut`           | Wikipedia and GitHub          | `Name \| https://address`, one per line    |
 | `toolbar_color`      | `#F5F5F5`                     | Background of the toolbar and tab strip    |
 | `active_tab_color`   | `#1A1A1A`                     | Text color of the active tab               |
@@ -76,7 +79,10 @@ Example:
 
 ```
 home_page = pawnet://home
-home_background = #E8F0FE
+home_background = linear-gradient(160deg, #1B2A3A, #101318)
+accent_color = #7FD1AE
+home_layout = top
+home_greeting = on
 shortcut = Wikipedia | https://www.wikipedia.org/
 shortcut = Mail & chat | https://mail.example.org/
 search_url = https://example.org/search?q=

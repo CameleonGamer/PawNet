@@ -64,6 +64,28 @@ bool ApplySetting(const std::string& key,
     settings->search_url = value;
   } else if (key == "home_background") {
     settings->home_background = value;
+  } else if (key == "accent_color") {
+    cef_color_t ignored;
+    if (!ParseColor(value, &ignored)) {
+      return false;
+    }
+    settings->accent_color = value;
+  } else if (key == "home_layout") {
+    if (value == "centered") {
+      settings->home_layout = HomeLayout::kCentered;
+    } else if (value == "top") {
+      settings->home_layout = HomeLayout::kTop;
+    } else {
+      return false;
+    }
+  } else if (key == "home_greeting") {
+    if (value == "on") {
+      settings->home_greeting = true;
+    } else if (value == "off") {
+      settings->home_greeting = false;
+    } else {
+      return false;
+    }
   } else if (key == "toolbar_color") {
     return ParseColor(value, &settings->toolbar_color);
   } else if (key == "active_tab_color") {

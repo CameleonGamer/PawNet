@@ -52,11 +52,11 @@ std::string Initial(const std::string& name) {
   return std::string(1, static_cast<char>(std::toupper(name[0])));
 }
 
-// Styles are kept in one block so the page needs no other files.
+// Styles are kept in one block so the page needs no other files. The accent
+// colour is declared after this block, from the settings.
 const char kStyle[] = R"(
   :root {
     color-scheme: dark;
-    --accent: #FF7F62;
     --text: #ECEEF2;
     --muted: #9AA0AA;
     --surface: rgba(255, 255, 255, 0.06);
@@ -81,7 +81,7 @@ const char kStyle[] = R"(
     content: "";
     position: absolute;
     inset: 0;
-    background: radial-gradient(60% 45% at 50% 0%, rgba(255, 127, 98, 0.16), transparent 70%);
+    background: radial-gradient(60% 45% at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
   }
   main {
     min-height: 100vh;
@@ -90,11 +90,12 @@ const char kStyle[] = R"(
     flex-direction: column;
     align-items: center;
   }
+  main.top { padding-top: 6vh; justify-content: flex-start; }
   .brand {
     display: flex;
     align-items: center;
     gap: 14px;
-    margin-bottom: 28px;
+    margin-bottom: 12px;
     animation: rise 0.5s ease-out both;
   }
   .paw { width: 56px; height: 56px; color: var(--accent); }
@@ -104,6 +105,13 @@ const char kStyle[] = R"(
     font-weight: 700;
     letter-spacing: -0.8px;
   }
+  .greeting {
+    margin: 0 0 24px;
+    font-size: 15px;
+    color: var(--muted);
+    animation: rise 0.5s 0.04s ease-out both;
+  }
+  .greeting .clock { margin-left: 10px; font-variant-numeric: tabular-nums; }
   .search {
     width: min(600px, 100%);
     animation: rise 0.5s 0.08s ease-out both;
@@ -125,7 +133,7 @@ const char kStyle[] = R"(
   .search input:hover { background: var(--surface-hover); }
   .search input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 4px rgba(255, 127, 98, 0.18);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
   }
   .shortcuts {
     width: min(600px, 100%);
@@ -151,7 +159,7 @@ const char kStyle[] = R"(
   .tile:hover, .tile:focus-visible {
     transform: translateY(-2px);
     background: var(--surface-hover);
-    border-color: rgba(255, 127, 98, 0.55);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
     outline: none;
   }
   .badge {
@@ -196,20 +204,32 @@ std::string BuildHomeHtml(const Settings& settings) {
 <title>Home</title>
 <style>)";
   html += kStyle;
+  // The accent was checked as "#RRGGBB" when the settings were read, so it is
+  // safe to put it in the stylesheet.
+  html += ":root { --accent: " + settings.accent_color + "; }\n";
   html += R"(</style>
 </head>
 <body>
 <div class="backdrop" style="background: )";
   html += HtmlEscape(settings.home_background);
   html += R"("></div>
-<main>
+<main)";
+  html += settings.home_layout == HomeLayout::kTop ? " class=\"top\"" : "";
+  html += R"(>
   <header class="brand">
     )";
   html += kPawSvg;
   html += R"(
     <h1>PawNet</h1>
   </header>
-  <form id="search" class="search" data-search=")";
+)";
+
+  if (settings.home_greeting) {
+    html += R"(  <p class="greeting"><span id="greeting"></span><time id="clock" class="clock"></time></p>
+)";
+  }
+
+  html += R"(  <form id="search" class="search" data-search=")";
   html += HtmlEscape(settings.search_url);
   html += R"(">
     <input name="q" type="search" placeholder="Search or enter a query" autocomplete="off" autofocus aria-label="Search">
@@ -237,6 +257,22 @@ std::string BuildHomeHtml(const Settings& settings) {
       window.location.href = form.dataset.search + encodeURIComponent(query);
     }
   });
+
+  const greeting = document.getElementById('greeting');
+  const clock = document.getElementById('clock');
+  if (greeting && clock) {
+    const update = () => {
+      const now = new Date();
+      const hour = now.getHours();
+      greeting.textContent = hour < 5 ? 'Good night'
+        : hour < 12 ? 'Good morning'
+        : hour < 18 ? 'Good afternoon'
+        : 'Good evening';
+      clock.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+    update();
+    setInterval(update, 15000);
+  }
 </script>
 </body>
 </html>
