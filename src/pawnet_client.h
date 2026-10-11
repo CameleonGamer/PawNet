@@ -3,6 +3,7 @@
 
 #include "include/cef_client.h"
 #include "include/cef_display_handler.h"
+#include "include/cef_download_handler.h"
 #include "include/cef_life_span_handler.h"
 
 class BrowserWindow;
@@ -10,7 +11,8 @@ class BrowserWindow;
 // Handles the browser of a single tab and reports its events to the window.
 class PawNetClient : public CefClient,
                      public CefLifeSpanHandler,
-                     public CefDisplayHandler {
+                     public CefDisplayHandler,
+                     public CefDownloadHandler {
  public:
   // |window| is kept alive until every client has received OnBeforeClose().
   PawNetClient(BrowserWindow* window, int tab_id);
@@ -18,6 +20,16 @@ class PawNetClient : public CefClient,
   // CefClient:
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
+  CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
+
+  // CefDownloadHandler:
+  bool OnBeforeDownload(CefRefPtr<CefBrowser> browser,
+                        CefRefPtr<CefDownloadItem> download_item,
+                        const CefString& suggested_name,
+                        CefRefPtr<CefBeforeDownloadCallback> callback) override;
+  void OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
+                         CefRefPtr<CefDownloadItem> download_item,
+                         CefRefPtr<CefDownloadItemCallback> callback) override;
 
   // CefLifeSpanHandler:
   bool OnBeforePopup(CefRefPtr<CefBrowser> browser,

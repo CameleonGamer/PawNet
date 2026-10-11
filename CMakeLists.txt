@@ -36,6 +36,8 @@ set(PAWNET_SRCS
   src/browser_window.h
   src/pawnet_client.cc
   src/pawnet_client.h
+  src/downloads.cc
+  src/downloads.h
   src/home_page.cc
   src/home_page.h
   src/settings.cc

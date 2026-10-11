@@ -16,13 +16,17 @@ Early prototype:
 - [x] Home page (`pawnet://home`): search, shortcuts and background, from the configuration
 - [x] App icon (paw), in the window and on the home page
 - [x] Settings page (`pawnet://settings`): every setting, saved to the configuration file and applied to open home pages
-- [ ] Downloads, history, bookmarks
+- [x] Downloads: saved to `~/Downloads` without asking, shown in the toolbar
+- [ ] Download list with progress and actions
+- [ ] History
+- [ ] Bookmarks
 - [ ] Packaging
 
 Known limitations of the prototype:
 
 - Closing a single tab with the `x` button does not show the page's `beforeunload` prompt.
 - The tab strip does not scroll: with many tabs, the rightmost ones are clipped.
+- The toolbar shows only the latest download. Clicking it opens the downloads folder.
 - When a page fails to load (for example an unreachable site), the address bar may keep the previous address.
 - After a settings save with an error, the address shows `pawnet://settings/save`; reloading that page submits the form again.
 

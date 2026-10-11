@@ -1,6 +1,7 @@
 #include "src/browser_window.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iterator>
@@ -17,6 +18,7 @@
 #include "include/views/cef_fill_layout.h"
 #include "include/views/cef_panel_delegate.h"
 #include "include/views/cef_textfield_delegate.h"
+#include "src/downloads.h"
 #include "src/pawnet_client.h"
 
 namespace {
@@ -26,6 +28,8 @@ const int kWindowHeight = 800;
 const int kReturnKeyCode = 0x0D;
 const size_t kMaxTabTitleLength = 24;
 const char kNewTabTitle[] = "New tab";
+const char kDownloadsIdle[] = "\xE2\x86\x93 Downloads";  // down arrow
+const size_t kMaxDownloadLabelLength = 32;
 
 // True when |text| starts with a scheme whose URL may contain spaces, such as
 // data: URLs with inline HTML.
@@ -273,6 +277,9 @@ void BrowserWindow::BuildUi() {
   toolbar_->AddChildView(
       MakeButton("+", [this] { OpenTab(settings_.home_page); }));
   toolbar_->AddChildView(address_bar_);
+  download_button_ =
+      MakeButton(kDownloadsIdle, [this] { OpenDownloadsFolder(); });
+  toolbar_->AddChildView(download_button_);
   toolbar_layout->SetFlexForView(address_bar_, 1);
 
   // Tab strip: one button per tab, added by OpenTab().
@@ -370,6 +377,41 @@ void BrowserWindow::RemoveTabAndShowNeighbour(size_t index) {
   }
   if (was_active || active_tab_ >= tabs_.size()) {
     ActivateTab(std::min(active_tab_, tabs_.size() - 1));
+  }
+}
+
+void BrowserWindow::OnDownloadUpdated(CefRefPtr<CefDownloadItem> download_item) {
+  // The saved path has the final name, which can differ from the suggestion.
+  std::string name =
+      std::filesystem::path(download_item->GetFullPath().ToString())
+          .filename()
+          .string();
+  if (name.empty()) {
+    name = download_item->GetSuggestedFileName().ToString();
+  }
+
+  std::string status;
+  if (download_item->IsComplete()) {
+    status = "saved";
+  } else if (download_item->IsCanceled()) {
+    status = "cancelled";
+  } else if (download_item->IsInterrupted()) {
+    status = "failed";
+  } else if (download_item->GetPercentComplete() >= 0) {
+    status = std::to_string(download_item->GetPercentComplete()) + "%";
+  } else {
+    status = "downloading";
+  }
+
+  download_button_->SetText(Truncate(
+      std::string("\xE2\x86\x93 ") + name + " " + status,
+      kMaxDownloadLabelLength));
+}
+
+void BrowserWindow::OpenDownloadsFolder() {
+  const std::string folder = DownloadsDirectory();
+  if (!folder.empty()) {
+    OpenTab("file://" + folder);
   }
 }
 

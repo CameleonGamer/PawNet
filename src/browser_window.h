@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "include/cef_download_item.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_label_button.h"
 #include "include/views/cef_panel.h"
@@ -34,6 +35,8 @@ class BrowserWindow : public CefWindowDelegate {
   void OnAddressChanged(int tab_id, const std::string& url);
   void OnBrowserClosed();
   void OnFullscreenModeChanged(bool fullscreen);
+  // Shows the latest download in the toolbar: name and progress or result.
+  void OnDownloadUpdated(CefRefPtr<CefDownloadItem> download_item);
 
   // CefWindowDelegate:
   void OnWindowCreated(CefRefPtr<CefWindow> window) override;
@@ -64,6 +67,8 @@ class BrowserWindow : public CefWindowDelegate {
   // Removes a tab and keeps a neighbouring tab active.
   void RemoveTabAndShowNeighbour(size_t index);
   void NavigateActiveTab(const std::string& input);
+  // Opens the downloads folder in a new tab.
+  void OpenDownloadsFolder();
   // Quits the application once the window and all its browsers are gone.
   void FinishIfDone();
   // Returns tabs_.size() when no tab has |tab_id|.
@@ -77,6 +82,7 @@ class BrowserWindow : public CefWindowDelegate {
   CefRefPtr<CefPanel> tab_strip_;
   CefRefPtr<CefPanel> content_;
   CefRefPtr<CefTextfield> address_bar_;
+  CefRefPtr<CefLabelButton> download_button_;
   std::vector<Tab> tabs_;
   size_t active_tab_ = 0;
   int next_tab_id_ = 1;

@@ -4,6 +4,7 @@
 
 #include "include/cef_task.h"
 #include "src/browser_window.h"
+#include "src/downloads.h"
 
 namespace {
 
@@ -68,4 +69,24 @@ void PawNetClient::OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
                                           bool fullscreen) {
   // Required with Alloy style: pages such as video players request fullscreen.
   window_->OnFullscreenModeChanged(fullscreen);
+}
+
+bool PawNetClient::OnBeforeDownload(
+    CefRefPtr<CefBrowser> browser,
+    CefRefPtr<CefDownloadItem> download_item,
+    const CefString& suggested_name,
+    CefRefPtr<CefBeforeDownloadCallback> callback) {
+  // Save straight into the downloads folder, without asking where to put it.
+  const std::string directory = DownloadsDirectory();
+  callback->Continue(UniqueDownloadPath(directory, suggested_name.ToString()),
+                     /*show_dialog=*/false);
+  window_->OnDownloadUpdated(download_item);
+  return true;
+}
+
+void PawNetClient::OnDownloadUpdated(
+    CefRefPtr<CefBrowser> browser,
+    CefRefPtr<CefDownloadItem> download_item,
+    CefRefPtr<CefDownloadItemCallback> callback) {
+  window_->OnDownloadUpdated(download_item);
 }
