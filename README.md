@@ -14,6 +14,7 @@ Early prototype:
 - [x] Confirmation of unsaved pages (`beforeunload`) when closing the window
 - [x] Configuration file (home page, search engine, colors)
 - [x] Home page (`pawnet://home`): search, shortcuts and background, from the configuration
+- [x] App icon (paw), in the window and on the home page
 - [ ] Settings page (`pawnet://settings`)
 - [ ] Downloads, history, bookmarks
 - [ ] Packaging
@@ -23,6 +24,15 @@ Known limitations of the prototype:
 - Closing a single tab with the `x` button does not show the page's `beforeunload` prompt.
 - The tab strip does not scroll: with many tabs, the rightmost ones are clipped.
 - When a page fails to load (for example an unreachable site), the address bar may keep the previous address.
+
+## Icon
+
+The app icon lives in `assets/pawnet-256.png`. It is drawn by `tools/make_icon.py`, which needs
+only Python 3, and copied next to the executable at build time. The same paw is used on the home page.
+
+```sh
+python3 tools/make_icon.py assets/pawnet-256.png
+```
 
 ## Building (Linux x64)
 

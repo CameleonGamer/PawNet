@@ -62,6 +62,12 @@ COPY_FILES("pawnet" "${CEF_RESOURCE_FILES}" "${CEF_RESOURCE_DIR}" "${CEF_TARGET_
 if(EXISTS "${CEF_BINARY_DIR}/libminigbm.so")
   COPY_FILES("pawnet" "libminigbm.so" "${CEF_BINARY_DIR}" "${CEF_TARGET_OUT_DIR}")
 endif()
+# The window icon is loaded from next to the executable at runtime.
+add_custom_command(TARGET pawnet POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${CMAKE_CURRENT_SOURCE_DIR}/assets/pawnet-256.png"
+          "${CEF_TARGET_OUT_DIR}/pawnet-256.png"
+  VERBATIM)
 if(USE_SANDBOX)
   SET_LINUX_SUID_PERMISSIONS("pawnet" "${CEF_TARGET_OUT_DIR}/chrome-sandbox")
 endif()

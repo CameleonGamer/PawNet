@@ -1,11 +1,15 @@
 #include "src/browser_window.h"
 
 #include <algorithm>
+#include <fstream>
 #include <functional>
+#include <iterator>
 #include <utility>
 #include <vector>
 
 #include "include/cef_app.h"
+#include "include/cef_command_line.h"
+#include "include/cef_image.h"
 #include "include/cef_parser.h"
 #include "include/views/cef_box_layout.h"
 #include "include/views/cef_browser_view_delegate.h"
@@ -71,6 +75,29 @@ std::string Truncate(const std::string& text, size_t max_chars) {
     ++chars;
   }
   return text;
+}
+
+// Loads the app icon that the build copies next to the executable. Returns
+// null when it is missing, and the window then keeps the default icon.
+CefRefPtr<CefImage> LoadAppIcon() {
+  const std::string program =
+      CefCommandLine::GetGlobalCommandLine()->GetProgram().ToString();
+  const size_t slash = program.find_last_of('/');
+  const std::string directory =
+      slash == std::string::npos ? "" : program.substr(0, slash + 1);
+
+  std::ifstream file(directory + "pawnet-256.png", std::ios::binary);
+  if (!file) {
+    return nullptr;
+  }
+  const std::string png((std::istreambuf_iterator<char>(file)),
+                        std::istreambuf_iterator<char>());
+
+  CefRefPtr<CefImage> image = CefImage::CreateImage();
+  if (!image->AddPNG(1.0f, png.data(), png.size())) {
+    return nullptr;
+  }
+  return image;
 }
 
 // Runs a callback when a button is pressed.
@@ -156,6 +183,10 @@ BrowserWindow::BrowserWindow(const Settings& settings) : settings_(settings) {}
 void BrowserWindow::OnWindowCreated(CefRefPtr<CefWindow> window) {
   window_ = window;
   window_->SetTitle("PawNet");
+  if (CefRefPtr<CefImage> icon = LoadAppIcon()) {
+    window_->SetWindowIcon(icon);
+    window_->SetWindowAppIcon(icon);
+  }
   window_->SetToFillLayout();
 
   BuildUi();

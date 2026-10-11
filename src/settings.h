@@ -19,7 +19,7 @@ struct Settings {
   // Address that the search query is appended to.
   std::string search_url = "https://duckduckgo.com/?q=";
   // Any CSS background value, used by the home page.
-  std::string home_background = "#FAFAFA";
+  std::string home_background = "#16181D";
   // Replaced entirely by the first "shortcut" line in the file.
   std::vector<Shortcut> shortcuts = {
       {"Wikipedia", "https://www.wikipedia.org/"},
