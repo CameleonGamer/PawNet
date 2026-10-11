@@ -36,6 +36,8 @@ set(PAWNET_SRCS
   src/browser_window.h
   src/pawnet_client.cc
   src/pawnet_client.h
+  src/settings.cc
+  src/settings.h
   )
 
 SET_CEF_TARGET_OUT_DIR()

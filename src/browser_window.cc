@@ -11,6 +11,7 @@
 #include "include/views/cef_browser_view_delegate.h"
 #include "include/views/cef_button_delegate.h"
 #include "include/views/cef_fill_layout.h"
+#include "include/views/cef_panel_delegate.h"
 #include "include/views/cef_textfield_delegate.h"
 #include "src/pawnet_client.h"
 
@@ -20,10 +21,7 @@ const int kWindowWidth = 1200;
 const int kWindowHeight = 800;
 const int kReturnKeyCode = 0x0D;
 const size_t kMaxTabTitleLength = 24;
-const char kSearchUrl[] = "https://duckduckgo.com/?q=";
 const char kNewTabTitle[] = "New tab";
-const cef_color_t kActiveTabColor = 0xFF1A1A1A;
-const cef_color_t kInactiveTabColor = 0xFF8A8A8A;
 
 // True when |text| starts with a scheme whose URL may contain spaces, such as
 // data: URLs with inline HTML.
@@ -40,7 +38,8 @@ bool HasUrlSchemePrefix(const std::string& text) {
 
 // Turns the address bar's text into something to load: a URL as typed, a bare
 // host (https is assumed), or otherwise a search query.
-std::string ToNavigableUrl(const std::string& input) {
+std::string ToNavigableUrl(const std::string& input,
+                           const std::string& search_url) {
   const size_t first = input.find_first_not_of(" \t");
   if (first == std::string::npos) {
     return "";
@@ -55,7 +54,7 @@ std::string ToNavigableUrl(const std::string& input) {
       text.find('.') != std::string::npos) {
     return "https://" + text;
   }
-  return kSearchUrl + CefURIEncode(text, true).ToString();
+  return search_url + CefURIEncode(text, true).ToString();
 }
 
 // Shortens |text| to |max_chars| characters, counting UTF-8 code points.
@@ -121,6 +120,22 @@ class AlloyBrowserViewDelegate : public CefBrowserViewDelegate {
   IMPLEMENT_REFCOUNTING(AlloyBrowserViewDelegate);
 };
 
+// Keeps a panel's background color. CEF resets it on every theme change, so
+// the color is applied again each time.
+class PanelColorDelegate : public CefPanelDelegate {
+ public:
+  explicit PanelColorDelegate(cef_color_t color) : color_(color) {}
+
+  void OnThemeChanged(CefRefPtr<CefView> view) override {
+    view->SetBackgroundColor(color_);
+  }
+
+ private:
+  const cef_color_t color_;
+
+  IMPLEMENT_REFCOUNTING(PanelColorDelegate);
+};
+
 CefRefPtr<CefLabelButton> MakeButton(const std::string& text,
                                      std::function<void()> on_press) {
   return CefLabelButton::CreateLabelButton(
@@ -130,14 +145,13 @@ CefRefPtr<CefLabelButton> MakeButton(const std::string& text,
 }  // namespace
 
 // static
-void BrowserWindow::Create(const std::string& home_page) {
-  CefRefPtr<BrowserWindow> window(new BrowserWindow(home_page));
+void BrowserWindow::Create(const Settings& settings) {
+  CefRefPtr<BrowserWindow> window(new BrowserWindow(settings));
   window->self_ = window;
   CefWindow::CreateTopLevelWindow(window.get());
 }
 
-BrowserWindow::BrowserWindow(const std::string& home_page)
-    : home_page_(home_page) {}
+BrowserWindow::BrowserWindow(const Settings& settings) : settings_(settings) {}
 
 void BrowserWindow::OnWindowCreated(CefRefPtr<CefWindow> window) {
   window_ = window;
@@ -149,7 +163,7 @@ void BrowserWindow::OnWindowCreated(CefRefPtr<CefWindow> window) {
   window_->CenterWindow(CefSize(kWindowWidth, kWindowHeight));
   window_->Show();
 
-  OpenTab(home_page_);
+  OpenTab(settings_.home_page);
 }
 
 void BrowserWindow::OnWindowDestroyed(CefRefPtr<CefWindow> window) {
@@ -194,16 +208,21 @@ void BrowserWindow::BuildUi() {
   row.between_child_spacing = 8;
   row.cross_axis_alignment = CEF_AXIS_ALIGNMENT_STRETCH;
 
-  toolbar_ = CefPanel::CreatePanel(nullptr);
+  toolbar_ = CefPanel::CreatePanel(
+      new PanelColorDelegate(settings_.toolbar_color));
   CefRefPtr<CefBoxLayout> toolbar_layout = toolbar_->SetToBoxLayout(row);
+  toolbar_->SetBackgroundColor(settings_.toolbar_color);
   toolbar_->AddChildView(MakeButton("x", [this] { CloseActiveTab(); }));
-  toolbar_->AddChildView(MakeButton("+", [this] { OpenTab(home_page_); }));
+  toolbar_->AddChildView(
+      MakeButton("+", [this] { OpenTab(settings_.home_page); }));
   toolbar_->AddChildView(address_bar_);
   toolbar_layout->SetFlexForView(address_bar_, 1);
 
   // Tab strip: one button per tab, added by OpenTab().
-  tab_strip_ = CefPanel::CreatePanel(nullptr);
+  tab_strip_ = CefPanel::CreatePanel(
+      new PanelColorDelegate(settings_.toolbar_color));
   tab_strip_->SetToBoxLayout(row);
+  tab_strip_->SetBackgroundColor(settings_.toolbar_color);
 
   content_ = CefPanel::CreatePanel(nullptr);
   content_->SetToFillLayout();
@@ -251,7 +270,8 @@ void BrowserWindow::ActivateTab(size_t index) {
     const bool active = i == index;
     tabs_[i].view->SetVisible(active);
     tabs_[i].button->SetTextColor(
-        CEF_BUTTON_STATE_NORMAL, active ? kActiveTabColor : kInactiveTabColor);
+        CEF_BUTTON_STATE_NORMAL,
+        active ? settings_.active_tab_color : settings_.inactive_tab_color);
   }
 
   address_bar_->SetText(tabs_[index].url);
@@ -297,7 +317,7 @@ void BrowserWindow::RemoveTabAndShowNeighbour(size_t index) {
 }
 
 void BrowserWindow::NavigateActiveTab(const std::string& input) {
-  const std::string url = ToNavigableUrl(input);
+  const std::string url = ToNavigableUrl(input, settings_.search_url);
   if (url.empty() || tabs_.empty()) {
     return;
   }

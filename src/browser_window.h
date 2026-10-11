@@ -11,13 +11,14 @@
 #include "include/views/cef_textfield.h"
 #include "include/views/cef_window.h"
 #include "include/views/cef_window_delegate.h"
+#include "src/settings.h"
 
 // The main window: a toolbar with the address bar, a tab strip and the page
 // area. Each tab is its own CefBrowserView, and only the active one is visible.
 class BrowserWindow : public CefWindowDelegate {
  public:
-  // Opens a window whose first tab loads |home_page|.
-  static void Create(const std::string& home_page);
+  // Opens a window whose first tab loads the home page from |settings|.
+  static void Create(const Settings& settings);
 
   // Adds a tab that loads |url| and makes it the active tab.
   void OpenTab(const std::string& url);
@@ -46,7 +47,7 @@ class BrowserWindow : public CefWindowDelegate {
     CefRefPtr<CefLabelButton> button;
   };
 
-  explicit BrowserWindow(const std::string& home_page);
+  explicit BrowserWindow(const Settings& settings);
 
   void BuildUi();
   void ActivateTab(size_t index);
@@ -62,7 +63,7 @@ class BrowserWindow : public CefWindowDelegate {
   // Returns tabs_.size() when no tab has |tab_id|.
   size_t IndexOfTab(int tab_id) const;
 
-  const std::string home_page_;
+  const Settings settings_;
   CefRefPtr<CefWindow> window_;
   CefRefPtr<CefPanel> toolbar_;
   CefRefPtr<CefPanel> tab_strip_;

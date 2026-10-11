@@ -12,7 +12,8 @@ Early prototype:
 - [x] Tabs (open, switch, close) and an address bar (URLs, bare hosts and search)
 - [x] Fullscreen requested by web pages
 - [x] Confirmation of unsaved pages (`beforeunload`) when closing the window
-- [ ] Settings page driven by a configuration file
+- [x] Configuration file (home page, search engine, colors)
+- [ ] Settings page (`pawnet://settings`)
 - [ ] Downloads, history, bookmarks
 - [ ] Packaging
 
@@ -40,6 +41,28 @@ Known limitations of the prototype:
    ```
 
 The first build also compiles CEF's C++ wrapper and takes a while.
+
+## Configuration
+
+PawNet reads `$XDG_CONFIG_HOME/pawnet/config` (or `~/.config/pawnet/config`) at startup.
+Each line is `key = value`; lines starting with `#` are comments. Missing keys keep their defaults,
+and unknown or invalid lines are reported on stderr and skipped.
+
+| Key                  | Default                       | Meaning                                    |
+|----------------------|-------------------------------|--------------------------------------------|
+| `home_page`          | `https://duckduckgo.com/`     | Page opened in the first tab and by `+`    |
+| `search_url`         | `https://duckduckgo.com/?q=`  | Search query is appended to this address   |
+| `toolbar_color`      | `#F5F5F5`                     | Background of the toolbar and tab strip    |
+| `active_tab_color`   | `#1A1A1A`                     | Text color of the active tab               |
+| `inactive_tab_color` | `#8A8A8A`                     | Text color of the other tabs               |
+
+Example:
+
+```
+home_page = https://example.org/
+search_url = https://example.org/search?q=
+toolbar_color = #CCE5FF
+```
 
 ## Running
 
