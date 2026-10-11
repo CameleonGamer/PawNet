@@ -13,6 +13,7 @@ Early prototype:
 - [x] Fullscreen requested by web pages
 - [x] Confirmation of unsaved pages (`beforeunload`) when closing the window
 - [x] Configuration file (home page, search engine, colors)
+- [x] Home page (`pawnet://home`): search, shortcuts and background, from the configuration
 - [ ] Settings page (`pawnet://settings`)
 - [ ] Downloads, history, bookmarks
 - [ ] Packaging
@@ -21,6 +22,7 @@ Known limitations of the prototype:
 
 - Closing a single tab with the `x` button does not show the page's `beforeunload` prompt.
 - The tab strip does not scroll: with many tabs, the rightmost ones are clipped.
+- When a page fails to load (for example an unreachable site), the address bar may keep the previous address.
 
 ## Building (Linux x64)
 
@@ -50,16 +52,23 @@ and unknown or invalid lines are reported on stderr and skipped.
 
 | Key                  | Default                       | Meaning                                    |
 |----------------------|-------------------------------|--------------------------------------------|
-| `home_page`          | `https://duckduckgo.com/`     | Page opened in the first tab and by `+`    |
+| `home_page`          | `pawnet://home`               | Page opened in the first tab and by `+`    |
 | `search_url`         | `https://duckduckgo.com/?q=`  | Search query is appended to this address   |
+| `home_background`    | `#FAFAFA`                     | Any CSS background for the home page       |
+| `shortcut`           | Wikipedia and GitHub          | `Name \| https://address`, one per line    |
 | `toolbar_color`      | `#F5F5F5`                     | Background of the toolbar and tab strip    |
 | `active_tab_color`   | `#1A1A1A`                     | Text color of the active tab               |
 | `inactive_tab_color` | `#8A8A8A`                     | Text color of the other tabs               |
 
+The first `shortcut` line replaces the default shortcuts. `shortcut =` with no value leaves none.
+
 Example:
 
 ```
-home_page = https://example.org/
+home_page = pawnet://home
+home_background = #E8F0FE
+shortcut = Wikipedia | https://www.wikipedia.org/
+shortcut = Mail & chat | https://mail.example.org/
 search_url = https://example.org/search?q=
 toolbar_color = #CCE5FF
 ```

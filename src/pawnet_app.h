@@ -12,6 +12,8 @@ class PawNetApp : public CefApp, public CefBrowserProcessHandler {
   PawNetApp() = default;
 
   // CefApp:
+  // Runs in every process, so the scheme exists wherever pages are rendered.
+  void OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) override;
   CefRefPtr<CefBrowserProcessHandler> GetBrowserProcessHandler() override {
     return this;
   }

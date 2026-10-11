@@ -43,6 +43,17 @@ bool ParseColor(const std::string& text, cef_color_t* color) {
   return true;
 }
 
+// Parses "Name | https://address". Both parts are required.
+bool ParseShortcut(const std::string& text, Shortcut* shortcut) {
+  const size_t bar = text.find('|');
+  if (bar == std::string::npos) {
+    return false;
+  }
+  shortcut->name = Trim(text.substr(0, bar));
+  shortcut->url = Trim(text.substr(bar + 1));
+  return !shortcut->name.empty() && !shortcut->url.empty();
+}
+
 // Applies one "key = value" pair. Returns false for unknown keys or bad values.
 bool ApplySetting(const std::string& key,
                   const std::string& value,
@@ -51,6 +62,8 @@ bool ApplySetting(const std::string& key,
     settings->home_page = value;
   } else if (key == "search_url") {
     settings->search_url = value;
+  } else if (key == "home_background") {
+    settings->home_background = value;
   } else if (key == "toolbar_color") {
     return ParseColor(value, &settings->toolbar_color);
   } else if (key == "active_tab_color") {
@@ -74,6 +87,10 @@ Settings LoadSettings() {
     return settings;
   }
 
+  // The first shortcut line replaces the default shortcuts. "shortcut =" with
+  // no value leaves the home page without shortcuts.
+  bool shortcuts_configured = false;
+
   std::string line;
   for (int number = 1; std::getline(file, line); ++number) {
     const std::string text = Trim(line);
@@ -82,10 +99,28 @@ Settings LoadSettings() {
     }
 
     const size_t equals = text.find('=');
-    const bool ok =
-        equals != std::string::npos &&
-        ApplySetting(Trim(text.substr(0, equals)),
-                     Trim(text.substr(equals + 1)), &settings);
+    if (equals == std::string::npos) {
+      std::cerr << path << ":" << number << ": ignored line: " << text << "\n";
+      continue;
+    }
+    const std::string key = Trim(text.substr(0, equals));
+    const std::string value = Trim(text.substr(equals + 1));
+
+    bool ok;
+    if (key == "shortcut") {
+      if (!shortcuts_configured) {
+        settings.shortcuts.clear();
+        shortcuts_configured = true;
+      }
+      Shortcut shortcut;
+      ok = value.empty() || ParseShortcut(value, &shortcut);
+      if (ok && !value.empty()) {
+        settings.shortcuts.push_back(shortcut);
+      }
+    } else {
+      ok = ApplySetting(key, value, &settings);
+    }
+
     if (!ok) {
       std::cerr << path << ":" << number << ": ignored line: " << text << "\n";
     }
