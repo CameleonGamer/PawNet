@@ -47,7 +47,7 @@ bool PawNetClient::OnBeforePopup(CefRefPtr<CefBrowser> browser,
 }
 
 void PawNetClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
-  window_->OnTabClosed(tab_id_);
+  window_->OnBrowserClosed();
 }
 
 void PawNetClient::OnAddressChange(CefRefPtr<CefBrowser> browser,

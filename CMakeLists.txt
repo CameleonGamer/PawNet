@@ -42,7 +42,7 @@ SET_CEF_TARGET_OUT_DIR()
 
 add_executable(pawnet ${PAWNET_SRCS})
 SET_EXECUTABLE_TARGET_PROPERTIES(pawnet)
-target_include_directories(pawnet PRIVATE ${CEF_ROOT})
+target_include_directories(pawnet PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CEF_ROOT})
 add_dependencies(pawnet libcef_dll_wrapper)
 ADD_LOGICAL_TARGET("libcef_lib" "${CEF_LIB_DEBUG}" "${CEF_LIB_RELEASE}")
 target_link_libraries(pawnet libcef_lib libcef_dll_wrapper ${CEF_STANDARD_LIBS})

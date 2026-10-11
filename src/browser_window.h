@@ -12,8 +12,8 @@
 #include "include/views/cef_window.h"
 #include "include/views/cef_window_delegate.h"
 
-// The main window: an address bar, a tab strip and the page area. Each tab is
-// its own CefBrowserView, and only the active one is visible.
+// The main window: a toolbar with the address bar, a tab strip and the page
+// area. Each tab is its own CefBrowserView, and only the active one is visible.
 class BrowserWindow : public CefWindowDelegate {
  public:
   // Opens a window whose first tab loads |home_page|.
@@ -25,12 +25,17 @@ class BrowserWindow : public CefWindowDelegate {
   // Called by PawNetClient on the UI thread.
   void OnTitleChanged(int tab_id, const std::string& title);
   void OnAddressChanged(int tab_id, const std::string& url);
-  void OnTabClosed(int tab_id);
+  void OnBrowserClosed();
 
   // CefWindowDelegate:
   void OnWindowCreated(CefRefPtr<CefWindow> window) override;
   void OnWindowDestroyed(CefRefPtr<CefWindow> window) override;
   bool CanClose(CefRefPtr<CefWindow> window) override;
+  // Alloy style is required: Chrome style allows only one BrowserView per
+  // window, and every tab is one.
+  cef_runtime_style_t GetWindowRuntimeStyle() override {
+    return CEF_RUNTIME_STYLE_ALLOY;
+  }
 
  private:
   struct Tab {
@@ -45,8 +50,13 @@ class BrowserWindow : public CefWindowDelegate {
   void BuildUi();
   void ActivateTab(size_t index);
   void CloseActiveTab();
-  void CloseAllTabs();
+  // Removes a tab from the window. Its browser is destroyed once the view is
+  // released, and OnBrowserClosed() is called then.
+  void RemoveTab(size_t index);
+  void RemoveAllTabs();
   void NavigateActiveTab(const std::string& input);
+  // Quits the application once the window and all its browsers are gone.
+  void FinishIfDone();
   // Returns tabs_.size() when no tab has |tab_id|.
   size_t IndexOfTab(int tab_id) const;
 
@@ -58,6 +68,12 @@ class BrowserWindow : public CefWindowDelegate {
   std::vector<Tab> tabs_;
   size_t active_tab_ = 0;
   int next_tab_id_ = 1;
+
+  // Browsers that have not reported OnBeforeClose yet. Their clients point
+  // back to this object, so |self_| keeps it alive until they are all gone.
+  int open_browsers_ = 0;
+  bool window_destroyed_ = false;
+  CefRefPtr<BrowserWindow> self_;
 
   IMPLEMENT_REFCOUNTING(BrowserWindow);
 };

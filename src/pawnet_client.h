@@ -12,7 +12,7 @@ class PawNetClient : public CefClient,
                      public CefLifeSpanHandler,
                      public CefDisplayHandler {
  public:
-  // |window| owns the tabs, so it must outlive every client it creates.
+  // |window| is kept alive until every client has received OnBeforeClose().
   PawNetClient(BrowserWindow* window, int tab_id);
 
   // CefClient:

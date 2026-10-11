@@ -8,6 +8,7 @@
 #include "include/cef_app.h"
 #include "include/cef_parser.h"
 #include "include/views/cef_box_layout.h"
+#include "include/views/cef_browser_view_delegate.h"
 #include "include/views/cef_button_delegate.h"
 #include "include/views/cef_fill_layout.h"
 #include "include/views/cef_textfield_delegate.h"
@@ -18,10 +19,24 @@ namespace {
 const int kWindowWidth = 1200;
 const int kWindowHeight = 800;
 const int kReturnKeyCode = 0x0D;
+const size_t kMaxTabTitleLength = 24;
 const char kSearchUrl[] = "https://duckduckgo.com/?q=";
 const char kNewTabTitle[] = "New tab";
 const cef_color_t kActiveTabColor = 0xFF1A1A1A;
 const cef_color_t kInactiveTabColor = 0xFF8A8A8A;
+
+// True when |text| starts with a scheme whose URL may contain spaces, such as
+// data: URLs with inline HTML.
+bool HasUrlSchemePrefix(const std::string& text) {
+  static const char* const kSchemes[] = {"about:", "data:", "file:",
+                                         "view-source:"};
+  for (const char* scheme : kSchemes) {
+    if (text.rfind(scheme, 0) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
 
 // Turns the address bar's text into something to load: a URL as typed, a bare
 // host (https is assumed), or otherwise a search query.
@@ -33,7 +48,7 @@ std::string ToNavigableUrl(const std::string& input) {
   const size_t last = input.find_last_not_of(" \t");
   const std::string text = input.substr(first, last - first + 1);
 
-  if (text.find("://") != std::string::npos || text.rfind("about:", 0) == 0) {
+  if (text.find("://") != std::string::npos || HasUrlSchemePrefix(text)) {
     return text;
   }
   if (text.find(' ') == std::string::npos &&
@@ -41,6 +56,22 @@ std::string ToNavigableUrl(const std::string& input) {
     return "https://" + text;
   }
   return kSearchUrl + CefURIEncode(text, true).ToString();
+}
+
+// Shortens |text| to |max_chars| characters, counting UTF-8 code points.
+std::string Truncate(const std::string& text, size_t max_chars) {
+  size_t chars = 0;
+  for (size_t i = 0; i < text.size(); ++i) {
+    // Continuation bytes (10xxxxxx) belong to the code point before them.
+    if ((static_cast<unsigned char>(text[i]) & 0xC0) == 0x80) {
+      continue;
+    }
+    if (chars == max_chars) {
+      return text.substr(0, i) + "...";
+    }
+    ++chars;
+  }
+  return text;
 }
 
 // Runs a callback when a button is pressed.
@@ -79,6 +110,17 @@ class AddressBarDelegate : public CefTextfieldDelegate {
   IMPLEMENT_REFCOUNTING(AddressBarDelegate);
 };
 
+// Keeps each tab's BrowserView on the Alloy runtime, matching the window.
+class AlloyBrowserViewDelegate : public CefBrowserViewDelegate {
+ public:
+  cef_runtime_style_t GetBrowserRuntimeStyle() override {
+    return CEF_RUNTIME_STYLE_ALLOY;
+  }
+
+ private:
+  IMPLEMENT_REFCOUNTING(AlloyBrowserViewDelegate);
+};
+
 CefRefPtr<CefLabelButton> MakeButton(const std::string& text,
                                      std::function<void()> on_press) {
   return CefLabelButton::CreateLabelButton(
@@ -89,8 +131,9 @@ CefRefPtr<CefLabelButton> MakeButton(const std::string& text,
 
 // static
 void BrowserWindow::Create(const std::string& home_page) {
-  CefRefPtr<CefWindowDelegate> delegate(new BrowserWindow(home_page));
-  CefWindow::CreateTopLevelWindow(delegate);
+  CefRefPtr<BrowserWindow> window(new BrowserWindow(home_page));
+  window->self_ = window;
+  CefWindow::CreateTopLevelWindow(window.get());
 }
 
 BrowserWindow::BrowserWindow(const std::string& home_page)
@@ -112,21 +155,20 @@ void BrowserWindow::OnWindowCreated(CefRefPtr<CefWindow> window) {
 void BrowserWindow::OnWindowDestroyed(CefRefPtr<CefWindow> window) {
   // Release the window reference so the window and this delegate can be freed.
   window_ = nullptr;
-  CefQuitMessageLoop();
+  window_destroyed_ = true;
+  FinishIfDone();
 }
 
 bool BrowserWindow::CanClose(CefRefPtr<CefWindow> window) {
-  if (tabs_.empty()) {
-    return true;
-  }
-  // Each tab closes asynchronously. The last one to close also closes the
-  // window, which then calls back here with no tabs left.
-  CloseAllTabs();
-  return false;
+  // Tab browsers are destroyed with their views and report OnBrowserClosed()
+  // on their own, so the window can close right away.
+  RemoveAllTabs();
+  return true;
 }
 
 void BrowserWindow::BuildUi() {
-  // Toolbar: the address bar takes all the remaining width.
+  // Toolbar: close tab, new tab, then the address bar, which takes the rest of
+  // the width. The actions stay visible even when many tabs overflow the strip.
   address_bar_ = CefTextfield::CreateTextfield(new AddressBarDelegate(
       [this](const std::string& input) { NavigateActiveTab(input); }));
   address_bar_->SetPlaceholderText("Search or enter an address");
@@ -139,16 +181,14 @@ void BrowserWindow::BuildUi() {
 
   CefRefPtr<CefPanel> toolbar = CefPanel::CreatePanel(nullptr);
   CefRefPtr<CefBoxLayout> toolbar_layout = toolbar->SetToBoxLayout(row);
+  toolbar->AddChildView(MakeButton("x", [this] { CloseActiveTab(); }));
+  toolbar->AddChildView(MakeButton("+", [this] { OpenTab(home_page_); }));
   toolbar->AddChildView(address_bar_);
   toolbar_layout->SetFlexForView(address_bar_, 1);
 
-  // Tab strip: one button per tab, then the "new tab" and "close tab" buttons.
-  // OpenTab() inserts tab buttons in front of those two.
+  // Tab strip: one button per tab, added by OpenTab().
   tab_strip_ = CefPanel::CreatePanel(nullptr);
   tab_strip_->SetToBoxLayout(row);
-  tab_strip_->AddChildView(
-      MakeButton("+", [this] { OpenTab(home_page_); }));
-  tab_strip_->AddChildView(MakeButton("x", [this] { CloseActiveTab(); }));
 
   content_ = CefPanel::CreatePanel(nullptr);
   content_->SetToFillLayout();
@@ -172,7 +212,8 @@ void BrowserWindow::OpenTab(const std::string& url) {
 
   CefRefPtr<CefClient> client(new PawNetClient(this, id));
   CefRefPtr<CefBrowserView> view = CefBrowserView::CreateBrowserView(
-      client, url, CefBrowserSettings(), nullptr, nullptr, nullptr);
+      client, url, CefBrowserSettings(), nullptr, nullptr,
+      new AlloyBrowserViewDelegate);
 
   CefRefPtr<CefLabelButton> button = MakeButton(
       kNewTabTitle, [this, id] { ActivateTab(IndexOfTab(id)); });
@@ -180,6 +221,7 @@ void BrowserWindow::OpenTab(const std::string& url) {
   tab_strip_->AddChildViewAt(button, static_cast<int>(tabs_.size()));
   content_->AddChildView(view);
   tabs_.push_back({id, url, view, button});
+  ++open_browsers_;
 
   ActivateTab(tabs_.size() - 1);
 }
@@ -205,20 +247,35 @@ void BrowserWindow::CloseActiveTab() {
   if (tabs_.empty()) {
     return;
   }
-  CefRefPtr<CefBrowser> browser = tabs_[active_tab_].view->GetBrowser();
-  if (browser) {
-    browser->GetHost()->CloseBrowser(false);
+  // Keep this object alive: removing the last tab closes the window, and that
+  // can finish the application before this function returns.
+  CefRefPtr<BrowserWindow> keep_alive(this);
+
+  const size_t closing = active_tab_;
+  RemoveTab(closing);
+  if (tabs_.empty()) {
+    window_->Close();
+    return;
   }
+  if (closing < active_tab_) {
+    --active_tab_;
+  }
+  ActivateTab(std::min(active_tab_, tabs_.size() - 1));
 }
 
-void BrowserWindow::CloseAllTabs() {
-  // Iterate over a copy: OnTabClosed() removes entries from tabs_.
-  const std::vector<Tab> tabs = tabs_;
-  for (const Tab& tab : tabs) {
-    CefRefPtr<CefBrowser> browser = tab.view->GetBrowser();
-    if (browser) {
-      browser->GetHost()->CloseBrowser(false);
-    }
+void BrowserWindow::RemoveTab(size_t index) {
+  // Alloy style: a browser is only destroyed when its BrowserView is removed
+  // from the window and released. CloseBrowser() would close the whole window
+  // instead, so it is not used for tabs.
+  Tab tab = tabs_[index];
+  content_->RemoveChildView(tab.view);
+  tab_strip_->RemoveChildView(tab.button);
+  tabs_.erase(tabs_.begin() + index);
+}
+
+void BrowserWindow::RemoveAllTabs() {
+  while (!tabs_.empty()) {
+    RemoveTab(tabs_.size() - 1);
   }
 }
 
@@ -239,7 +296,8 @@ void BrowserWindow::OnTitleChanged(int tab_id, const std::string& title) {
   if (index == tabs_.size()) {
     return;
   }
-  tabs_[index].button->SetText(title.empty() ? tabs_[index].url : title);
+  const std::string& label = title.empty() ? tabs_[index].url : title;
+  tabs_[index].button->SetText(Truncate(label, kMaxTabTitleLength));
 }
 
 void BrowserWindow::OnAddressChanged(int tab_id, const std::string& url) {
@@ -253,24 +311,18 @@ void BrowserWindow::OnAddressChanged(int tab_id, const std::string& url) {
   }
 }
 
-void BrowserWindow::OnTabClosed(int tab_id) {
-  const size_t index = IndexOfTab(tab_id);
-  if (index == tabs_.size()) {
+void BrowserWindow::OnBrowserClosed() {
+  --open_browsers_;
+  FinishIfDone();
+}
+
+void BrowserWindow::FinishIfDone() {
+  if (!window_destroyed_ || open_browsers_ > 0) {
     return;
   }
-
-  content_->RemoveChildView(tabs_[index].view);
-  tab_strip_->RemoveChildView(tabs_[index].button);
-  tabs_.erase(tabs_.begin() + index);
-
-  if (tabs_.empty()) {
-    window_->Close();
-    return;
-  }
-  if (index < active_tab_) {
-    --active_tab_;
-  }
-  ActivateTab(std::min(active_tab_, tabs_.size() - 1));
+  CefQuitMessageLoop();
+  // Releasing the last reference may delete this object, so nothing after it.
+  self_ = nullptr;
 }
 
 size_t BrowserWindow::IndexOfTab(int tab_id) const {

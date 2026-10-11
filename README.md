@@ -14,6 +14,12 @@ Early prototype:
 - [ ] Downloads, history, bookmarks
 - [ ] Packaging
 
+Known limitations of the prototype:
+
+- Closing a tab does not show the page's `beforeunload` prompt.
+- Fullscreen requests from web pages (for example video) are not handled yet.
+- The tab strip does not scroll: with many tabs, the rightmost ones are clipped.
+
 ## Building (Linux x64)
 
 1. Download a **stable** CEF binary distribution for Linux 64-bit from
