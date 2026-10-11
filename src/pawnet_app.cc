@@ -11,6 +11,7 @@ namespace {
 const char kPawNetScheme[] = "pawnet";
 const char kHomeHost[] = "home";
 const char kSettingsHost[] = "settings";
+const char kBookmarksHost[] = "bookmarks";
 
 }  // namespace
 
@@ -30,6 +31,7 @@ void PawNetApp::OnContextInitialized() {
       new PawNetSchemeHandlerFactory(settings));
   CefRegisterSchemeHandlerFactory(kPawNetScheme, kHomeHost, pages);
   CefRegisterSchemeHandlerFactory(kPawNetScheme, kSettingsHost, pages);
+  CefRegisterSchemeHandlerFactory(kPawNetScheme, kBookmarksHost, pages);
 
   // --url=<address> overrides the home page for this run only, which is handy
   // for testing. Saving the settings never writes this value to the file.

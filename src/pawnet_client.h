@@ -5,6 +5,7 @@
 #include "include/cef_display_handler.h"
 #include "include/cef_download_handler.h"
 #include "include/cef_life_span_handler.h"
+#include "include/cef_load_handler.h"
 
 class BrowserWindow;
 
@@ -12,7 +13,8 @@ class BrowserWindow;
 class PawNetClient : public CefClient,
                      public CefLifeSpanHandler,
                      public CefDisplayHandler,
-                     public CefDownloadHandler {
+                     public CefDownloadHandler,
+                     public CefLoadHandler {
  public:
   // |window| is kept alive until every client has received OnBeforeClose().
   PawNetClient(BrowserWindow* window, int tab_id);
@@ -21,6 +23,14 @@ class PawNetClient : public CefClient,
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
+  CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
+
+  // CefLoadHandler:
+  // Called as soon as a navigation starts, so the address is right even when
+  // the page then fails to load.
+  void OnLoadStart(CefRefPtr<CefBrowser> browser,
+                   CefRefPtr<CefFrame> frame,
+                   TransitionType transition_type) override;
 
   // CefDownloadHandler:
   bool OnBeforeDownload(CefRefPtr<CefBrowser> browser,

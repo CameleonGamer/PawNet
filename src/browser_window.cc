@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <utility>
 #include <vector>
@@ -18,6 +19,7 @@
 #include "include/views/cef_fill_layout.h"
 #include "include/views/cef_panel_delegate.h"
 #include "include/views/cef_textfield_delegate.h"
+#include "src/bookmarks.h"
 #include "src/downloads.h"
 #include "src/pawnet_client.h"
 
@@ -28,6 +30,8 @@ const int kWindowHeight = 800;
 const int kReturnKeyCode = 0x0D;
 const size_t kMaxTabTitleLength = 24;
 const char kNewTabTitle[] = "New tab";
+const char kStarEmpty[] = "\xE2\x98\x86";  // WHITE STAR
+const char kStarFilled[] = "\xE2\x98\x85";  // BLACK STAR
 const char kDownloadsIdle[] = "\xE2\x86\x93 Downloads";  // down arrow
 const size_t kMaxDownloadLabelLength = 32;
 
@@ -277,6 +281,9 @@ void BrowserWindow::BuildUi() {
   toolbar_->AddChildView(
       MakeButton("+", [this] { OpenTab(settings_.home_page); }));
   toolbar_->AddChildView(address_bar_);
+  bookmark_button_ =
+      MakeButton(kStarEmpty, [this] { ToggleBookmarkForActiveTab(); });
+  toolbar_->AddChildView(bookmark_button_);
   download_button_ =
       MakeButton(kDownloadsIdle, [this] { OpenDownloadsFolder(); });
   toolbar_->AddChildView(download_button_);
@@ -318,7 +325,7 @@ void BrowserWindow::OpenTab(const std::string& url) {
 
   tab_strip_->AddChildViewAt(button, static_cast<int>(tabs_.size()));
   content_->AddChildView(view);
-  tabs_.push_back({id, url, view, button});
+  tabs_.push_back({id, url, "", view, button});
   ++open_browsers_;
 
   ActivateTab(tabs_.size() - 1);
@@ -340,6 +347,7 @@ void BrowserWindow::ActivateTab(size_t index) {
 
   address_bar_->SetText(tabs_[index].url);
   tabs_[index].view->RequestFocus();
+  UpdateBookmarkButton();
 }
 
 void BrowserWindow::CloseActiveTab() {
@@ -432,6 +440,7 @@ void BrowserWindow::OnTitleChanged(int tab_id, const std::string& title) {
   if (index == tabs_.size()) {
     return;
   }
+  tabs_[index].title = title;
   const std::string& label = title.empty() ? tabs_[index].url : title;
   tabs_[index].button->SetText(Truncate(label, kMaxTabTitleLength));
 }
@@ -444,7 +453,29 @@ void BrowserWindow::OnAddressChanged(int tab_id, const std::string& url) {
   tabs_[index].url = url;
   if (index == active_tab_) {
     address_bar_->SetText(url);
+    UpdateBookmarkButton();
   }
+}
+
+void BrowserWindow::UpdateBookmarkButton() {
+  if (tabs_.empty()) {
+    return;
+  }
+  const bool bookmarked = IsBookmarked(tabs_[active_tab_].url);
+  bookmark_button_->SetText(bookmarked ? kStarFilled : kStarEmpty);
+}
+
+void BrowserWindow::ToggleBookmarkForActiveTab() {
+  if (tabs_.empty()) {
+    return;
+  }
+  const Tab& tab = tabs_[active_tab_];
+  bool bookmarked = false;
+  std::string error;
+  if (!ToggleBookmark(tab.title, tab.url, &bookmarked, &error)) {
+    std::cerr << error << "\n";
+  }
+  UpdateBookmarkButton();
 }
 
 void BrowserWindow::OnBrowserClosed() {

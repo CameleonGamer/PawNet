@@ -19,7 +19,7 @@ Early prototype:
 - [x] Downloads: saved to `~/Downloads` without asking, shown in the toolbar
 - [ ] Download list with progress and actions
 - [ ] History
-- [ ] Bookmarks
+- [x] Bookmarks: a star in the toolbar adds or removes the current page; `pawnet://bookmarks` lists and removes them
 - [ ] Packaging
 
 Known limitations of the prototype:
@@ -27,7 +27,6 @@ Known limitations of the prototype:
 - Closing a single tab with the `x` button does not show the page's `beforeunload` prompt.
 - The tab strip does not scroll: with many tabs, the rightmost ones are clipped.
 - The toolbar shows only the latest download. Clicking it opens the downloads folder.
-- When a page fails to load (for example an unreachable site), the address bar may keep the previous address.
 - After a settings save with an error, the address shows `pawnet://settings/save`; reloading that page submits the form again.
 
 ## Icon
@@ -62,6 +61,8 @@ The first build also compiles CEF's C++ wrapper and takes a while.
 ## Configuration
 
 PawNet reads `$XDG_CONFIG_HOME/pawnet/config` (or `~/.config/pawnet/config`) at startup.
+Bookmarks are stored in `bookmarks.json` in the same folder.
+
 The same settings can be edited on the `pawnet://settings` page, which writes this file. Comments and
 unknown lines in the file are kept when it is saved.
 Each line is `key = value`; lines starting with `#` are comments. Missing keys keep their defaults,

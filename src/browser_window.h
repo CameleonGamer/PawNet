@@ -52,6 +52,7 @@ class BrowserWindow : public CefWindowDelegate {
   struct Tab {
     int id;
     std::string url;
+    std::string title;
     CefRefPtr<CefBrowserView> view;
     CefRefPtr<CefLabelButton> button;
   };
@@ -69,6 +70,9 @@ class BrowserWindow : public CefWindowDelegate {
   void NavigateActiveTab(const std::string& input);
   // Opens the downloads folder in a new tab.
   void OpenDownloadsFolder();
+  // Adds or removes the active page from the bookmarks, and updates the star.
+  void ToggleBookmarkForActiveTab();
+  void UpdateBookmarkButton();
   // Quits the application once the window and all its browsers are gone.
   void FinishIfDone();
   // Returns tabs_.size() when no tab has |tab_id|.
@@ -82,6 +86,7 @@ class BrowserWindow : public CefWindowDelegate {
   CefRefPtr<CefPanel> tab_strip_;
   CefRefPtr<CefPanel> content_;
   CefRefPtr<CefTextfield> address_bar_;
+  CefRefPtr<CefLabelButton> bookmark_button_;
   CefRefPtr<CefLabelButton> download_button_;
   std::vector<Tab> tabs_;
   size_t active_tab_ = 0;

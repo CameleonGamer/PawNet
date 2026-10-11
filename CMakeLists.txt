@@ -32,6 +32,8 @@ set(PAWNET_SRCS
   src/main.cc
   src/pawnet_app.cc
   src/pawnet_app.h
+  src/bookmarks.cc
+  src/bookmarks.h
   src/browser_window.cc
   src/browser_window.h
   src/pawnet_client.cc

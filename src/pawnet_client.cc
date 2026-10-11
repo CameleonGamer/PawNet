@@ -60,6 +60,14 @@ void PawNetClient::OnAddressChange(CefRefPtr<CefBrowser> browser,
   }
 }
 
+void PawNetClient::OnLoadStart(CefRefPtr<CefBrowser> browser,
+                               CefRefPtr<CefFrame> frame,
+                               TransitionType transition_type) {
+  if (frame->IsMain()) {
+    window_->OnAddressChanged(tab_id_, frame->GetURL().ToString());
+  }
+}
+
 void PawNetClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
                                  const CefString& title) {
   window_->OnTitleChanged(tab_id_, title.ToString());

@@ -8,8 +8,8 @@
 #include "include/cef_scheme.h"
 #include "src/settings.h"
 
-// Serves the internal pages: pawnet://home, pawnet://settings, and the form
-// target pawnet://settings/save. Pages are built from the current settings on
+// Serves the internal pages: pawnet://home, pawnet://settings, pawnet://bookmarks
+// and the form targets pawnet://settings/save and pawnet://bookmarks/remove. Pages are built from the current settings on
 // every request, so a saved change shows up at once.
 class PawNetSchemeHandlerFactory : public CefSchemeHandlerFactory {
  public:
@@ -29,6 +29,8 @@ class PawNetSchemeHandlerFactory : public CefSchemeHandlerFactory {
  private:
   Settings CurrentSettings();
   CefRefPtr<CefResourceHandler> HandleSave(CefRefPtr<CefRequest> request);
+  CefRefPtr<CefResourceHandler> HandleRemoveBookmark(
+      CefRefPtr<CefRequest> request);
 
   // Requests can arrive on the IO thread, so settings are read and written
   // under this lock.

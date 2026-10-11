@@ -1,5 +1,7 @@
 #include "src/home_page.h"
 
+#include "src/bookmarks.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -594,6 +596,132 @@ std::string BuildSettingsHtml(const Settings& settings,
   return html;
 }
 
+// Only used by the bookmarks page, on top of kStyle.
+const char kBookmarksStyle[] = R"(
+  main.bookmarks { padding-top: 8vh; justify-content: flex-start; }
+  .notice {
+    width: min(600px, 100%);
+    margin: 0 0 20px;
+    padding: 12px 16px;
+    font-size: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .notice.error { border-color: #E5484D; color: #FFB4B4; }
+  .bookmark-list {
+    width: min(600px, 100%);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+  }
+  .bookmark {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+  .bookmark-text { min-width: 0; flex: 1; display: grid; gap: 3px; }
+  .bookmark-title {
+    color: var(--text);
+    font-size: 15px;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bookmark-title:hover { color: var(--accent); }
+  .bookmark-url {
+    color: var(--muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .remove {
+    flex: none;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    cursor: pointer;
+  }
+  .remove:hover { border-color: #E5484D; color: #FFB4B4; }
+  .empty { color: var(--muted); font-size: 15px; }
+  .links { margin-top: 28px; font-size: 14px; }
+  .links a { color: var(--accent); }
+)";
+
+std::string BuildBookmarksHtml(const Settings& settings,
+                               const std::vector<Bookmark>& bookmarks,
+                               const std::string& message,
+                               bool is_error) {
+  std::string html = R"HTML(<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks</title>
+<style>)HTML";
+  html += kStyle;
+  html += kBookmarksStyle;
+  html += ":root { --accent: " + settings.accent_color + "; }\n";
+  html += R"HTML(</style>
+</head>
+<body>
+<div class="backdrop" style="background: )HTML";
+  html += HtmlEscape(settings.home_background);
+  html += R"HTML("></div>
+<main class="bookmarks">
+  <header class="brand">
+    )HTML";
+  html += kPawSvg;
+  html += R"HTML(
+    <h1>Bookmarks</h1>
+  </header>
+)HTML";
+
+  if (!message.empty()) {
+    html += std::string("<p class=\"notice") + (is_error ? " error" : "") +
+            "\">" + HtmlEscape(message) + "</p>\n";
+  }
+
+  if (bookmarks.empty()) {
+    html += "<p class=\"empty\">No bookmarks yet. Use the star in the toolbar "
+            "to bookmark the page you are on.</p>\n";
+  } else {
+    html += "<ul class=\"bookmark-list\">\n";
+    for (const Bookmark& bookmark : bookmarks) {
+      html += "  <li class=\"bookmark\"><div class=\"bookmark-text\">"
+              "<a class=\"bookmark-title\" href=\"" + HtmlEscape(bookmark.url) +
+              "\">" + HtmlEscape(bookmark.title) + "</a>"
+              "<span class=\"bookmark-url\">" + HtmlEscape(bookmark.url) +
+              "</span></div>"
+              "<form method=\"post\" action=\"pawnet://bookmarks/remove\">"
+              "<input type=\"hidden\" name=\"url\" value=\"" +
+              HtmlEscape(bookmark.url) + "\">"
+              "<button class=\"remove\" type=\"submit\">Remove</button>"
+              "</form></li>\n";
+    }
+    html += "</ul>\n";
+  }
+
+  html += R"HTML(<p class="links"><a href="pawnet://home">Back to home</a></p>
+</main>
+</body>
+</html>
+)HTML";
+  return html;
+}
+
 }  // namespace
 
 PawNetSchemeHandlerFactory::PawNetSchemeHandlerFactory(const Settings& settings)
@@ -627,6 +755,13 @@ CefRefPtr<CefResourceHandler> PawNetSchemeHandlerFactory::Create(
   }
   if (host == "settings" && path == "/save") {
     return HandleSave(request);
+  }
+  if (host == "bookmarks" && path == "/remove") {
+    return HandleRemoveBookmark(request);
+  }
+  if (host == "bookmarks") {
+    return HtmlResponse(
+        BuildBookmarksHtml(CurrentSettings(), LoadBookmarks(), "", false));
   }
   if (host == "settings") {
     const bool saved = query.find("saved=1") != std::string::npos;
@@ -711,4 +846,22 @@ CefRefPtr<CefResourceHandler> PawNetSchemeHandlerFactory::HandleSave(
                 }));
   }
   return RedirectResponse("pawnet://settings?saved=1");
+}
+
+CefRefPtr<CefResourceHandler> PawNetSchemeHandlerFactory::HandleRemoveBookmark(
+    CefRefPtr<CefRequest> request) {
+  const std::map<std::string, std::string> form =
+      ParseForm(ReadPostBody(request));
+  const auto url = form.find("url");
+  if (url == form.end() || url->second.empty()) {
+    return HtmlResponse(BuildBookmarksHtml(
+        CurrentSettings(), LoadBookmarks(), "Nothing was removed.", true));
+  }
+
+  std::string error;
+  if (!RemoveBookmark(url->second, &error)) {
+    return HtmlResponse(BuildBookmarksHtml(CurrentSettings(), LoadBookmarks(),
+                                           error, true));
+  }
+  return RedirectResponse("pawnet://bookmarks");
 }
