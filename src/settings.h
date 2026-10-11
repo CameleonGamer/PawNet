@@ -42,4 +42,24 @@ struct Settings {
 // XDG_CONFIG_HOME is not set. Returns the defaults if there is no file.
 Settings LoadSettings();
 
+// Sets one setting from its text form, as the file has it. Returns false, and
+// leaves |settings| unchanged, when the key is unknown or the value is invalid.
+// The "shortcut" key is not handled here; see ParseShortcut().
+bool SetSetting(const std::string& key,
+                const std::string& value,
+                Settings* settings);
+
+// Parses "Name | https://address". Both parts are required.
+bool ParseShortcut(const std::string& text, Shortcut* shortcut);
+
+// "#RRGGBB" for the opaque colour |color|.
+std::string ColorToHex(cef_color_t color);
+
+// Path of the configuration file, or "" when no home directory is known.
+std::string SettingsPath();
+
+// Writes |settings| to the configuration file. Comments and lines for unknown
+// keys are kept where they are. On failure returns false and sets |error|.
+bool SaveSettings(const Settings& settings, std::string* error);
+
 #endif  // PAWNET_SRC_SETTINGS_H_

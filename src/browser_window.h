@@ -2,6 +2,7 @@
 #define PAWNET_SRC_BROWSER_WINDOW_H_
 
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -17,8 +18,13 @@
 // area. Each tab is its own CefBrowserView, and only the active one is visible.
 class BrowserWindow : public CefWindowDelegate {
  public:
-  // Opens a window whose first tab loads the home page from |settings|.
-  static void Create(const Settings& settings);
+  // Opens a window whose first tab loads the home page from |settings|. The
+  // window object lives until its browsers have closed.
+  static BrowserWindow* Create(const Settings& settings);
+
+  // Applies saved settings to the open window: colours, search address and
+  // shortcuts, and reloads the home pages that are open.
+  void ApplySettings(const Settings& settings);
 
   // Adds a tab that loads |url| and makes it the active tab.
   void OpenTab(const std::string& url);
@@ -63,7 +69,9 @@ class BrowserWindow : public CefWindowDelegate {
   // Returns tabs_.size() when no tab has |tab_id|.
   size_t IndexOfTab(int tab_id) const;
 
-  const Settings settings_;
+  Settings settings_;
+  // Shared with the panels' colour delegates, which reapply it on theme changes.
+  std::shared_ptr<cef_color_t> toolbar_color_;
   CefRefPtr<CefWindow> window_;
   CefRefPtr<CefPanel> toolbar_;
   CefRefPtr<CefPanel> tab_strip_;

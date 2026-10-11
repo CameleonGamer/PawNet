@@ -1,15 +1,24 @@
 #ifndef PAWNET_SRC_HOME_PAGE_H_
 #define PAWNET_SRC_HOME_PAGE_H_
 
+#include <functional>
+#include <mutex>
 #include <string>
 
 #include "include/cef_scheme.h"
 #include "src/settings.h"
 
-// Serves pawnet://home, the home page, built from the user's settings.
+// Serves the internal pages: pawnet://home, pawnet://settings, and the form
+// target pawnet://settings/save. Pages are built from the current settings on
+// every request, so a saved change shows up at once.
 class PawNetSchemeHandlerFactory : public CefSchemeHandlerFactory {
  public:
+  // Called on the UI thread after the settings have been saved.
+  using SettingsListener = std::function<void(const Settings&)>;
+
   explicit PawNetSchemeHandlerFactory(const Settings& settings);
+
+  void SetSettingsListener(SettingsListener listener);
 
   // CefSchemeHandlerFactory:
   CefRefPtr<CefResourceHandler> Create(CefRefPtr<CefBrowser> browser,
@@ -18,8 +27,14 @@ class PawNetSchemeHandlerFactory : public CefSchemeHandlerFactory {
                                        CefRefPtr<CefRequest> request) override;
 
  private:
-  // Kept for the lifetime of the factory: the response streams from this memory.
-  const std::string home_html_;
+  Settings CurrentSettings();
+  CefRefPtr<CefResourceHandler> HandleSave(CefRefPtr<CefRequest> request);
+
+  // Requests can arrive on the IO thread, so settings are read and written
+  // under this lock.
+  std::mutex mutex_;
+  Settings settings_;
+  SettingsListener listener_;
 
   IMPLEMENT_REFCOUNTING(PawNetSchemeHandlerFactory);
 };

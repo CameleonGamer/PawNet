@@ -15,7 +15,7 @@ Early prototype:
 - [x] Configuration file (home page, search engine, colors)
 - [x] Home page (`pawnet://home`): search, shortcuts and background, from the configuration
 - [x] App icon (paw), in the window and on the home page
-- [ ] Settings page (`pawnet://settings`)
+- [x] Settings page (`pawnet://settings`): every setting, saved to the configuration file and applied to open home pages
 - [ ] Downloads, history, bookmarks
 - [ ] Packaging
 
@@ -24,6 +24,7 @@ Known limitations of the prototype:
 - Closing a single tab with the `x` button does not show the page's `beforeunload` prompt.
 - The tab strip does not scroll: with many tabs, the rightmost ones are clipped.
 - When a page fails to load (for example an unreachable site), the address bar may keep the previous address.
+- After a settings save with an error, the address shows `pawnet://settings/save`; reloading that page submits the form again.
 
 ## Icon
 
@@ -57,6 +58,8 @@ The first build also compiles CEF's C++ wrapper and takes a while.
 ## Configuration
 
 PawNet reads `$XDG_CONFIG_HOME/pawnet/config` (or `~/.config/pawnet/config`) at startup.
+The same settings can be edited on the `pawnet://settings` page, which writes this file. Comments and
+unknown lines in the file are kept when it is saved.
 Each line is `key = value`; lines starting with `#` are comments. Missing keys keep their defaults,
 and unknown or invalid lines are reported on stderr and skipped.
 

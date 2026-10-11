@@ -148,17 +148,19 @@ class AlloyBrowserViewDelegate : public CefBrowserViewDelegate {
 };
 
 // Keeps a panel's background color. CEF resets it on every theme change, so
-// the color is applied again each time.
+// the color is applied again each time. The color is shared with the window,
+// which changes it when settings are saved.
 class PanelColorDelegate : public CefPanelDelegate {
  public:
-  explicit PanelColorDelegate(cef_color_t color) : color_(color) {}
+  explicit PanelColorDelegate(std::shared_ptr<cef_color_t> color)
+      : color_(std::move(color)) {}
 
   void OnThemeChanged(CefRefPtr<CefView> view) override {
-    view->SetBackgroundColor(color_);
+    view->SetBackgroundColor(*color_);
   }
 
  private:
-  const cef_color_t color_;
+  const std::shared_ptr<cef_color_t> color_;
 
   IMPLEMENT_REFCOUNTING(PanelColorDelegate);
 };
@@ -172,13 +174,37 @@ CefRefPtr<CefLabelButton> MakeButton(const std::string& text,
 }  // namespace
 
 // static
-void BrowserWindow::Create(const Settings& settings) {
+BrowserWindow* BrowserWindow::Create(const Settings& settings) {
   CefRefPtr<BrowserWindow> window(new BrowserWindow(settings));
   window->self_ = window;
   CefWindow::CreateTopLevelWindow(window.get());
+  return window.get();
 }
 
-BrowserWindow::BrowserWindow(const Settings& settings) : settings_(settings) {}
+BrowserWindow::BrowserWindow(const Settings& settings)
+    : settings_(settings),
+      toolbar_color_(std::make_shared<cef_color_t>(settings.toolbar_color)) {}
+
+void BrowserWindow::ApplySettings(const Settings& settings) {
+  settings_ = settings;
+  *toolbar_color_ = settings.toolbar_color;
+  toolbar_->SetBackgroundColor(settings.toolbar_color);
+  tab_strip_->SetBackgroundColor(settings.toolbar_color);
+
+  // Recolours the tab buttons with the new text colours.
+  if (!tabs_.empty()) {
+    ActivateTab(active_tab_);
+  }
+
+  // Home pages are built when loaded, so open ones are reloaded to show the
+  // new background, accent, shortcuts and layout.
+  for (const Tab& tab : tabs_) {
+    CefRefPtr<CefBrowser> browser = tab.view->GetBrowser();
+    if (browser && tab.url.rfind("pawnet://home", 0) == 0) {
+      browser->Reload();
+    }
+  }
+}
 
 void BrowserWindow::OnWindowCreated(CefRefPtr<CefWindow> window) {
   window_ = window;
@@ -240,7 +266,7 @@ void BrowserWindow::BuildUi() {
   row.cross_axis_alignment = CEF_AXIS_ALIGNMENT_STRETCH;
 
   toolbar_ = CefPanel::CreatePanel(
-      new PanelColorDelegate(settings_.toolbar_color));
+      new PanelColorDelegate(toolbar_color_));
   CefRefPtr<CefBoxLayout> toolbar_layout = toolbar_->SetToBoxLayout(row);
   toolbar_->SetBackgroundColor(settings_.toolbar_color);
   toolbar_->AddChildView(MakeButton("x", [this] { CloseActiveTab(); }));
@@ -251,7 +277,7 @@ void BrowserWindow::BuildUi() {
 
   // Tab strip: one button per tab, added by OpenTab().
   tab_strip_ = CefPanel::CreatePanel(
-      new PanelColorDelegate(settings_.toolbar_color));
+      new PanelColorDelegate(toolbar_color_));
   tab_strip_->SetToBoxLayout(row);
   tab_strip_->SetBackgroundColor(settings_.toolbar_color);
 
